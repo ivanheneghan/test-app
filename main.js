@@ -692,6 +692,17 @@ const BLOCKER_VISUAL_SCALE = 3;
 // loop in update()) so the hazard boundary is tighter than the bigger icon.
 const BLOCKER_HITBOX_SCALE = 1.6;
 
+// Obstacle art is provided as low-contrast/translucent icons that wash out
+// against the busy background. A solid backing plate + drop shadow behind
+// the icon (drawn at full opacity) makes it pop instead of blending in.
+function hexToRgba(hex, alpha) {
+  const clean = (hex || '').replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16) || 0;
+  const g = parseInt(clean.substring(2, 4), 16) || 0;
+  const b = parseInt(clean.substring(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function drawObstacle(obstacle) {
   const img = obstacle.image ? getChromaKeyedImage(obstacle.image) : null;
 
@@ -701,6 +712,17 @@ function drawObstacle(obstacle) {
     const visualH = obstacle.h * BLOCKER_VISUAL_SCALE;
     const cx = obstacle.x + obstacle.w / 2;
     const cy = obstacle.y + obstacle.h / 2;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = hexToRgba(obstacle.color || '#E74C3C', 0.9);
+    const plateW = visualW * 0.7;
+    const plateH = visualH * 0.7;
+    ctx.fillRect(cx - plateW / 2, cy - plateH / 2, plateW, plateH);
+    ctx.restore();
+
+    ctx.globalAlpha = 1;
     drawImageContain(img, cx - visualW / 2, cy - visualH / 2, visualW, visualH);
   } else {
     // No image yet - draw at the true hitbox size so the fallback

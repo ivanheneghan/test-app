@@ -143,7 +143,7 @@ window.GAME_LEVELS = [
       {
         label: 'Roadmaps',
         x: 590,
-        y: 503,
+        y: 543,
         w: 120,
         h: 120,
         color: '#E74C3C',
