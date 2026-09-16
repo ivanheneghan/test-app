@@ -219,8 +219,8 @@ window.GAME_LEVELS = [
     obstacles: [
       {
         label: 'Enablement Gap',
-        x: 1140,
-        y: 73,
+        x: 1000,
+        y: 120,
         w: 80,
         h: 80,
         color: '#E74C3C',
