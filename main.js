@@ -224,7 +224,7 @@ function toggleConfig() {
 function beginGame() {
   if (state !== STATE.START_MENU || configOpen) return;
   startScreen.classList.add('hidden');
-  startLevel(LevelManager.getBest() - 1); // resume from the last unlocked level
+  startLevel(0); // always start a fresh run from Level 1; best level persists separately
 }
 
 startScreen.addEventListener('click', beginGame);
@@ -498,6 +498,8 @@ function getChromaKeyedImage(src, tolerance = 40) {
 // kick off loading for each referenced image up front, so most assets are
 // already decoded by the time a level using them is reached.
 function preloadLevelImages() {
+  getImage(BACKGROUND_IMAGE);
+  getImage(PROJECTILE_IMAGE);
   for (const level of LEVELS) {
     if (level.launcher.image) getImage(level.launcher.image);
     if (level.portal.image) getImage(level.portal.image);
@@ -536,10 +538,10 @@ function drawImageContain(img, x, y, w, h) {
 function drawPlanet(planet) {
   const entity = ENTITY_TYPES[planet.type];
   const label = planet.label || (entity && entity.label) || planet.type;
-  const img = planet.image ? getImage(planet.image) : null;
+  const img = planet.image ? getChromaKeyedImage(planet.image) : null;
   const size = planet.radius * 2;
 
-  if (isImageReady(img)) {
+  if (img) {
     ctx.save();
     ctx.beginPath();
     ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
@@ -560,26 +562,26 @@ function drawPlanet(planet) {
 }
 
 function drawObstacle(obstacle) {
-  const img = obstacle.image ? getImage(obstacle.image) : null;
+  const img = obstacle.image ? getChromaKeyedImage(obstacle.image) : null;
 
-  if (isImageReady(img)) {
+  if (img) {
     drawImageContain(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
   } else {
     ctx.fillStyle = obstacle.color || COLORS.darkest;
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
   }
 
-  ctx.fillStyle = COLORS.lightest;
+  ctx.fillStyle = COLORS.darkest;
   ctx.font = '9px monospace';
   ctx.textAlign = 'center';
   ctx.fillText(obstacle.label, obstacle.x + obstacle.w / 2, obstacle.y - 4);
 }
 
 function drawPortal(portal) {
-  const img = portal.image ? getImage(portal.image) : null;
+  const img = portal.image ? getChromaKeyedImage(portal.image) : null;
   const size = portal.radius * 2;
 
-  if (isImageReady(img)) {
+  if (img) {
     ctx.save();
     ctx.beginPath();
     ctx.arc(portal.x, portal.y, portal.radius, 0, Math.PI * 2);
@@ -610,11 +612,24 @@ function drawLauncher(launcher) {
   }
 }
 
+const PROJECTILE_IMAGE = 'assets/images/Rocket.png';
+const PROJECTILE_SPRITE_SIZE = 22; // visual size only - collision still uses PROJECTILE_RADIUS
+
 function drawProjectile(p) {
-  ctx.fillStyle = COLORS.darkest;
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, PROJECTILE_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
+  const img = getChromaKeyedImage(PROJECTILE_IMAGE);
+
+  if (img) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(Math.atan2(p.vy, p.vx) + Math.PI / 2); // sprite's nose points up by default
+    ctx.drawImage(img, -PROJECTILE_SPRITE_SIZE / 2, -PROJECTILE_SPRITE_SIZE / 2, PROJECTILE_SPRITE_SIZE, PROJECTILE_SPRITE_SIZE);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = COLORS.darkest;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PROJECTILE_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawTrajectory(points) {
@@ -801,14 +816,29 @@ function renderStartMenu() {
   ctx.restore();
 }
 
+const BACKGROUND_IMAGE = 'assets/images/background.jpeg';
+const BACKGROUND_ALPHA = 0.2;
+
+function drawGameBackground() {
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  const bg = getImage(BACKGROUND_IMAGE);
+  if (isImageReady(bg)) {
+    ctx.save();
+    ctx.globalAlpha = BACKGROUND_ALPHA;
+    drawImageCover(bg, 0, 0, WIDTH, HEIGHT);
+    ctx.restore();
+  }
+}
+
 function render() {
   if (state === STATE.START_MENU) {
     renderStartMenu();
     return;
   }
 
-  ctx.fillStyle = COLORS.lightest;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  drawGameBackground();
 
   const level = LevelManager.current;
 
