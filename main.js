@@ -649,7 +649,7 @@ function drawImageContain(img, x, y, w, h) {
 // Visual-only enlargement for portraits - planet.radius (gravity pull
 // trigger) and mass/gravity math are untouched, only how big the
 // portrait is drawn on screen.
-const PEOPLE_VISUAL_SCALE = 3;
+const PEOPLE_VISUAL_SCALE = 1.5;
 
 function drawPlanet(planet) {
   const entity = ENTITY_TYPES[planet.type];
@@ -706,21 +706,26 @@ function drawObstacle(obstacle) {
   }
 }
 
+// Visual-only enlargement - portal.radius (used for the win-condition
+// distance check in update()) is untouched, only how big it's drawn.
+const PORTAL_VISUAL_SCALE = 3;
+
 function drawPortal(portal) {
   const img = portal.image ? getChromaKeyedImage(portal.image) : null;
-  const size = portal.radius * 2;
+  const visualRadius = portal.radius * PORTAL_VISUAL_SCALE;
+  const size = visualRadius * 2;
 
   if (img) {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(portal.x, portal.y, portal.radius, 0, Math.PI * 2);
+    ctx.arc(portal.x, portal.y, visualRadius, 0, Math.PI * 2);
     ctx.clip();
-    drawImageCover(img, portal.x - portal.radius, portal.y - portal.radius, size, size, 1.15);
+    drawImageCover(img, portal.x - visualRadius, portal.y - visualRadius, size, size, 1.15);
     ctx.restore();
   } else {
     ctx.fillStyle = portal.color || COLORS.dark;
     ctx.beginPath();
-    ctx.arc(portal.x, portal.y, portal.radius, 0, Math.PI * 2);
+    ctx.arc(portal.x, portal.y, visualRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = COLORS.darkest;
     ctx.font = 'bold 10px monospace';
@@ -731,13 +736,15 @@ function drawPortal(portal) {
 
 // Visual-only nudge for the launcher sprite - the actual launcher.x/y
 // (aim pivot, projectile spawn point) is untouched so physics/hitboxes
-// don't shift, only where the sprite is drawn relative to it.
-const LAUNCHER_SPRITE_OFFSET_X = 16;
-const LAUNCHER_SPRITE_OFFSET_Y = -16;
+// don't shift, only where the sprite is drawn relative to it. Offset
+// scales with size to preserve the same relative nudge.
+const LAUNCHER_VISUAL_SIZE = 288;
+const LAUNCHER_SPRITE_OFFSET_X = 48;
+const LAUNCHER_SPRITE_OFFSET_Y = -48;
 
 function drawLauncher(launcher) {
   const img = launcher.image ? getChromaKeyedImage(launcher.image) : null;
-  const size = 96;
+  const size = LAUNCHER_VISUAL_SIZE;
   const drawX = launcher.x + LAUNCHER_SPRITE_OFFSET_X;
   const drawY = launcher.y + LAUNCHER_SPRITE_OFFSET_Y;
 
@@ -750,7 +757,7 @@ function drawLauncher(launcher) {
 }
 
 const PROJECTILE_IMAGE = 'assets/images/Rocket.png';
-const PROJECTILE_SPRITE_SIZE = 40; // visual size only - collision still uses PROJECTILE_RADIUS
+const PROJECTILE_SPRITE_SIZE = 120; // visual size only - collision still uses PROJECTILE_RADIUS
 
 function drawProjectile(p) {
   const img = getChromaKeyedImage(PROJECTILE_IMAGE);
@@ -882,9 +889,9 @@ function drawHighScoreMarquee() {
 function drawBestiaryCard() {
   const card = BESTIARY[attract.cardIndex];
   const boxX = ATTRACT_VW / 2 - 260;
-  const boxY = 434;
+  const boxY = 452;
   const boxW = 520;
-  const boxH = 46;
+  const boxH = 32;
 
   ctx.fillStyle = COLORS.light;
   ctx.fillRect(boxX, boxY, boxW, boxH);
@@ -892,12 +899,12 @@ function drawBestiaryCard() {
   ctx.lineWidth = 3;
   ctx.strokeRect(boxX, boxY, boxW, boxH);
 
-  BESTIARY_ICONS[card.type](boxX + 14, boxY + 11);
+  BESTIARY_ICONS[card.type](boxX + 14, boxY + 4);
 
   ctx.fillStyle = COLORS.darkest;
   ctx.font = 'bold 12px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText(card.text, boxX + 52, boxY + 27);
+  ctx.fillText(card.text, boxX + 52, boxY + 20);
 }
 
 function drawTicker() {
