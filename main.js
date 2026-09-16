@@ -1008,6 +1008,13 @@ function render() {
   for (const obstacle of level.obstacles) drawObstacle(obstacle);
   for (const planet of level.planets) drawPlanet(planet);
   drawPortal(level.portal);
+
+  // Rocket is drawn before the launcher sprite so at spawn it sits behind
+  // the salesperson (looks like it launches from them) instead of on top.
+  if (state === STATE.IN_FLIGHT && projectile) {
+    drawProjectile(projectile);
+  }
+
   drawLauncher(level.launcher);
 
   if (state === STATE.IDLE_AIM && aim.dragging) {
@@ -1025,10 +1032,6 @@ function render() {
       ctx.lineTo(aim.curX, aim.curY);
       ctx.stroke();
     }
-  }
-
-  if (state === STATE.IN_FLIGHT && projectile) {
-    drawProjectile(projectile);
   }
 }
 
