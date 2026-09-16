@@ -18,6 +18,20 @@
 
 window.GAME_LEVELS = [
   {
+    id: 0,
+    title: 'Level 0: Straight Shot',
+    launcher: { x: 150, y: 800, image: 'assets/images/Sales Person.png' },
+    portal: {
+      x: 1450,
+      y: 150,
+      radius: 40,
+      color: '#2ECC71',
+      image: 'assets/images/Portal.png',
+    },
+    planets: [],
+    obstacles: [],
+  },
+  {
     id: 1,
     title: 'Onboarding & First Pull',
     launcher: { x: 150, y: 800, image: 'assets/images/Sales Person.png' },

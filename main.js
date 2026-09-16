@@ -288,7 +288,7 @@ function pointerDown(x, y) {
   const level = LevelManager.current;
   const dx = x - level.launcher.x;
   const dy = y - level.launcher.y;
-  if (Math.sqrt(dx * dx + dy * dy) > 60) return; // must grab near launcher
+  if (Math.sqrt(dx * dx + dy * dy) > 200) return; // must grab near launcher
   aim.dragging = true;
   aim.startX = level.launcher.x;
   aim.startY = level.launcher.y;
@@ -367,8 +367,8 @@ function applyGravityAndExecPlanets(p, dt) {
     p.vy += ay * dt;
 
     // Executive logic: within pull radius, apply the entity's velocity factor
-    // Hitbox matches the enlarged visual portrait size (PEOPLE_VISUAL_SCALE).
-    if (dist <= planet.radius * PEOPLE_VISUAL_SCALE) {
+    // Hitbox uses the dedicated, tighter PEOPLE_HITBOX_SCALE.
+    if (dist <= planet.radius * PEOPLE_HITBOX_SCALE) {
       const entity = ENTITY_TYPES[planet.type];
       if (entity) {
         const frames = dt * 60;
@@ -444,21 +444,21 @@ function update(dt) {
 
   const level = LevelManager.current;
 
-  // Portal (goal) check - hitbox matches the enlarged visual size (PORTAL_VISUAL_SCALE)
+  // Portal (goal) check - hitbox uses the dedicated, larger PORTAL_HITBOX_SCALE
   const gdx = projectile.x - level.portal.x;
   const gdy = projectile.y - level.portal.y;
-  if (Math.sqrt(gdx * gdx + gdy * gdy) <= level.portal.radius * PORTAL_VISUAL_SCALE + PROJECTILE_RADIUS) {
+  if (Math.sqrt(gdx * gdx + gdy * gdy) <= level.portal.radius * PORTAL_HITBOX_SCALE + PROJECTILE_RADIUS) {
     triggerWin();
     return;
   }
 
-  // Obstacle AABB collision - hitbox matches the enlarged visual size (BLOCKER_VISUAL_SCALE)
+  // Obstacle AABB collision - hitbox uses the dedicated, tighter BLOCKER_HITBOX_SCALE
   for (const obstacle of level.obstacles) {
     const cx = obstacle.x + obstacle.w / 2;
     const cy = obstacle.y + obstacle.h / 2;
-    const visualW = obstacle.w * BLOCKER_VISUAL_SCALE;
-    const visualH = obstacle.h * BLOCKER_VISUAL_SCALE;
-    const hitboxRect = { x: cx - visualW / 2, y: cy - visualH / 2, w: visualW, h: visualH };
+    const hitboxW = obstacle.w * BLOCKER_HITBOX_SCALE;
+    const hitboxH = obstacle.h * BLOCKER_HITBOX_SCALE;
+    const hitboxRect = { x: cx - hitboxW / 2, y: cy - hitboxH / 2, w: hitboxW, h: hitboxH };
     if (circleRectCollision(projectile.x, projectile.y, PROJECTILE_RADIUS, hitboxRect)) {
       triggerFail();
       return;
@@ -652,10 +652,12 @@ function drawImageContain(img, x, y, w, h) {
   ctx.drawImage(img, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
 }
 
-// Enlarges both the portrait art and the gravity-pull/velocity-factor
-// trigger radius (see applyGravityAndExecPlanets) so the hitbox matches
-// the bigger portrait. Mass/gravity-force math is untouched.
+// Controls the portrait art size. Mass/gravity-force math is untouched.
 const PEOPLE_VISUAL_SCALE = 1.5;
+// Separate, smaller scale for the gravity-pull/velocity-factor trigger
+// radius (see applyGravityAndExecPlanets) so the pull zone is tighter
+// than the visual portrait.
+const PEOPLE_HITBOX_SCALE = 0.9;
 
 function drawPlanet(planet) {
   const entity = ENTITY_TYPES[planet.type];
@@ -684,9 +686,11 @@ function drawPlanet(planet) {
   ctx.fillText(label, planet.x, planet.y - visualRadius - 6);
 }
 
-// Enlarges both the obstacle art and its AABB collision hitbox (see the
-// obstacle loop in update()) so the hazard boundary matches the bigger icon.
+// Controls the obstacle icon size.
 const BLOCKER_VISUAL_SCALE = 3;
+// Separate, smaller scale for the AABB collision hitbox (see the obstacle
+// loop in update()) so the hazard boundary is tighter than the bigger icon.
+const BLOCKER_HITBOX_SCALE = 1.6;
 
 function drawObstacle(obstacle) {
   const img = obstacle.image ? getChromaKeyedImage(obstacle.image) : null;
@@ -711,9 +715,11 @@ function drawObstacle(obstacle) {
   }
 }
 
-// Enlarges both the portal art and the win-condition distance check radius
-// in update() so the hitbox matches the bigger portal.
+// Controls the portal art size.
 const PORTAL_VISUAL_SCALE = 3;
+// Separate, larger scale for the win-condition distance check radius in
+// update() so the portal is easier to hit than its visual size implies.
+const PORTAL_HITBOX_SCALE = 4;
 
 function drawPortal(portal) {
   const img = portal.image ? getChromaKeyedImage(portal.image) : null;
