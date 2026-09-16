@@ -367,7 +367,8 @@ function applyGravityAndExecPlanets(p, dt) {
     p.vy += ay * dt;
 
     // Executive logic: within pull radius, apply the entity's velocity factor
-    if (dist <= planet.radius) {
+    // Hitbox matches the enlarged visual portrait size (PEOPLE_VISUAL_SCALE).
+    if (dist <= planet.radius * PEOPLE_VISUAL_SCALE) {
       const entity = ENTITY_TYPES[planet.type];
       if (entity) {
         const frames = dt * 60;
@@ -443,17 +444,22 @@ function update(dt) {
 
   const level = LevelManager.current;
 
-  // Portal (goal) check
+  // Portal (goal) check - hitbox matches the enlarged visual size (PORTAL_VISUAL_SCALE)
   const gdx = projectile.x - level.portal.x;
   const gdy = projectile.y - level.portal.y;
-  if (Math.sqrt(gdx * gdx + gdy * gdy) <= level.portal.radius + PROJECTILE_RADIUS) {
+  if (Math.sqrt(gdx * gdx + gdy * gdy) <= level.portal.radius * PORTAL_VISUAL_SCALE + PROJECTILE_RADIUS) {
     triggerWin();
     return;
   }
 
-  // Obstacle AABB collision
+  // Obstacle AABB collision - hitbox matches the enlarged visual size (BLOCKER_VISUAL_SCALE)
   for (const obstacle of level.obstacles) {
-    if (circleRectCollision(projectile.x, projectile.y, PROJECTILE_RADIUS, obstacle)) {
+    const cx = obstacle.x + obstacle.w / 2;
+    const cy = obstacle.y + obstacle.h / 2;
+    const visualW = obstacle.w * BLOCKER_VISUAL_SCALE;
+    const visualH = obstacle.h * BLOCKER_VISUAL_SCALE;
+    const hitboxRect = { x: cx - visualW / 2, y: cy - visualH / 2, w: visualW, h: visualH };
+    if (circleRectCollision(projectile.x, projectile.y, PROJECTILE_RADIUS, hitboxRect)) {
       triggerFail();
       return;
     }
@@ -646,9 +652,9 @@ function drawImageContain(img, x, y, w, h) {
   ctx.drawImage(img, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
 }
 
-// Visual-only enlargement for portraits - planet.radius (gravity pull
-// trigger) and mass/gravity math are untouched, only how big the
-// portrait is drawn on screen.
+// Enlarges both the portrait art and the gravity-pull/velocity-factor
+// trigger radius (see applyGravityAndExecPlanets) so the hitbox matches
+// the bigger portrait. Mass/gravity-force math is untouched.
 const PEOPLE_VISUAL_SCALE = 1.5;
 
 function drawPlanet(planet) {
@@ -678,9 +684,8 @@ function drawPlanet(planet) {
   ctx.fillText(label, planet.x, planet.y - visualRadius - 6);
 }
 
-// Visual-only enlargement for obstacle art - the real AABB hitbox used
-// for collision (obstacle.x/y/w/h) is untouched, so difficulty/level
-// layout doesn't change, only how big the icon is drawn on screen.
+// Enlarges both the obstacle art and its AABB collision hitbox (see the
+// obstacle loop in update()) so the hazard boundary matches the bigger icon.
 const BLOCKER_VISUAL_SCALE = 3;
 
 function drawObstacle(obstacle) {
@@ -706,8 +711,8 @@ function drawObstacle(obstacle) {
   }
 }
 
-// Visual-only enlargement - portal.radius (used for the win-condition
-// distance check in update()) is untouched, only how big it's drawn.
+// Enlarges both the portal art and the win-condition distance check radius
+// in update() so the hitbox matches the bigger portal.
 const PORTAL_VISUAL_SCALE = 3;
 
 function drawPortal(portal) {
