@@ -1,0 +1,52 @@
+<!-- Client/UI layer: page structure, canvas mount point, HUD overlay -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="googlebot" content="noindex, nofollow">
+  <title>Deal Slinger</title>
+  <link rel="stylesheet" href="styles.css?v=003">
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="960" height="540"></canvas>
+
+    <div id="hud">
+      <div id="hud-level">LEVEL 1</div>
+      <div id="hud-best">BEST: 1</div>
+    </div>
+
+    <div id="banner" class="hidden">
+      <div id="banner-text">DEAL CLOSED!</div>
+      <div id="banner-sub">Loading next lead...</div>
+    </div>
+
+    <div id="fail-banner" class="hidden">
+      <div id="fail-text">DEAL LOST</div>
+      <div id="fail-sub">Resetting pitch...</div>
+    </div>
+
+    <!-- Attract-mode start screen: canvas draws the visuals; this div only
+         catches click/key input and hosts the 'S' config overlay. -->
+    <div id="start-screen">
+      <div id="config-overlay" class="hidden">
+        <div id="config-title">-- CONFIG --</div>
+        <div class="setting-row">
+          <span class="setting-label">THEME</span>
+          <button id="theme-toggle" class="setting-btn" type="button"></button>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">TRAJECTORY GUIDE</span>
+          <button id="trajectory-toggle" class="setting-btn" type="button"></button>
+        </div>
+        <div id="config-hint">[ PRESS S TO CLOSE ]</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js?v=003"></script>
+  <script src="main.js?v=003"></script>
+</body>
+</html>

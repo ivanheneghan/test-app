@@ -1,0 +1,152 @@
+/* Client/UI layer: Game Boy 4-color palette, canvas scaling, HUD/banners */
+
+:root {
+  --gb-darkest: #0F380F;
+  --gb-dark: #306230;
+  --gb-light: #8BAC0F;
+  --gb-lightest: #9BBC0F;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--gb-darkest);
+  color: var(--gb-lightest);
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+}
+
+#game-wrap {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game {
+  background: var(--gb-lightest);
+  aspect-ratio: 16 / 9;
+  width: min(100vw, 177.78vh);
+  height: min(56.25vw, 100vh);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 4px solid var(--gb-darkest);
+}
+
+#hud {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--gb-lightest);
+  text-shadow: 1px 1px 0 var(--gb-darkest);
+  pointer-events: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#banner, #fail-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  padding: 20px 40px;
+  border: 3px solid var(--gb-darkest);
+  background: var(--gb-light);
+  color: var(--gb-darkest);
+  pointer-events: none;
+}
+
+#banner-text, #fail-text {
+  font-size: 28px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+#banner-sub, #fail-sub {
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+#fail-banner {
+  background: var(--gb-dark);
+  color: var(--gb-lightest);
+}
+
+/* ---------- Start Screen (Attract Mode) ---------- */
+/* The canvas draws all attract-mode visuals; this div only catches
+   click/key input and hosts the 'S' config overlay on top of it. */
+
+#start-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+}
+
+#config-overlay {
+  border: 3px solid var(--gb-darkest);
+  background: var(--gb-lightest);
+  color: var(--gb-darkest);
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: default;
+  box-shadow: 4px 4px 0 var(--gb-dark);
+}
+
+#config-title {
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.setting-btn {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  background: var(--gb-dark);
+  color: var(--gb-lightest);
+  border: 2px solid var(--gb-darkest);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.setting-btn:hover {
+  background: var(--gb-darkest);
+}
+
+#config-hint {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  opacity: 0.8;
+}
