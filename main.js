@@ -468,6 +468,16 @@ function preloadLevelImages() {
 }
 
 // ---------- Render ----------
+// Draws `img` covering a w x h box (like CSS object-fit: cover): scales
+// uniformly so the box is fully filled, cropping any overflow, instead of
+// stretching the image to the box's aspect ratio.
+function drawImageCover(img, x, y, w, h) {
+  const scale = Math.max(w / img.width, h / img.height);
+  const drawW = img.width * scale;
+  const drawH = img.height * scale;
+  ctx.drawImage(img, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
+}
+
 function drawPlanet(planet) {
   const entity = ENTITY_TYPES[planet.type];
   const label = planet.label || (entity && entity.label) || planet.type;
@@ -475,7 +485,12 @@ function drawPlanet(planet) {
   const size = planet.radius * 2;
 
   if (isImageReady(img)) {
-    ctx.drawImage(img, planet.x - planet.radius, planet.y - planet.radius, size, size);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+    ctx.clip();
+    drawImageCover(img, planet.x - planet.radius, planet.y - planet.radius, size, size);
+    ctx.restore();
   } else {
     ctx.fillStyle = planet.color || (entity && COLORS[entity.colorKey]) || COLORS.dark;
     ctx.beginPath();
@@ -493,7 +508,12 @@ function drawObstacle(obstacle) {
   const img = obstacle.image ? getImage(obstacle.image) : null;
 
   if (isImageReady(img)) {
-    ctx.drawImage(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+    ctx.clip();
+    drawImageCover(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+    ctx.restore();
   } else {
     ctx.fillStyle = obstacle.color || COLORS.darkest;
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
@@ -510,7 +530,12 @@ function drawPortal(portal) {
   const size = portal.radius * 2;
 
   if (isImageReady(img)) {
-    ctx.drawImage(img, portal.x - portal.radius, portal.y - portal.radius, size, size);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(portal.x, portal.y, portal.radius, 0, Math.PI * 2);
+    ctx.clip();
+    drawImageCover(img, portal.x - portal.radius, portal.y - portal.radius, size, size);
+    ctx.restore();
   } else {
     ctx.fillStyle = portal.color || COLORS.dark;
     ctx.beginPath();

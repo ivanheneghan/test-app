@@ -26,7 +26,7 @@ window.GAME_LEVELS = [
       y: 150,
       radius: 40,
       color: '#2ECC71',
-      image: 'assets/images/portal.png',
+      image: 'assets/images/Portal.png',
     },
     planets: [
       {
@@ -69,7 +69,7 @@ window.GAME_LEVELS = [
       y: 150,
       radius: 40,
       color: '#2ECC71',
-      image: 'assets/images/portal.png',
+      image: 'assets/images/Portal.png',
     },
     planets: [
       {
@@ -112,7 +112,7 @@ window.GAME_LEVELS = [
       y: 150,
       radius: 40,
       color: '#2ECC71',
-      image: 'assets/images/portal.png',
+      image: 'assets/images/Portal.png',
     },
     planets: [
       {
@@ -155,7 +155,7 @@ window.GAME_LEVELS = [
       y: 150,
       radius: 40,
       color: '#2ECC71',
-      image: 'assets/images/portal.png',
+      image: 'assets/images/Portal.png',
     },
     planets: [
       {
@@ -189,7 +189,7 @@ window.GAME_LEVELS = [
       y: 150,
       radius: 40,
       color: '#2ECC71',
-      image: 'assets/images/portal.png',
+      image: 'assets/images/Portal.png',
     },
     planets: [
       {
