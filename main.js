@@ -257,6 +257,10 @@ function getCanvasPos(clientX, clientY) {
   };
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function pointerDown(x, y) {
   if (state !== STATE.IDLE_AIM) return;
   const level = LevelManager.current;
@@ -266,14 +270,14 @@ function pointerDown(x, y) {
   aim.dragging = true;
   aim.startX = level.launcher.x;
   aim.startY = level.launcher.y;
-  aim.curX = x;
-  aim.curY = y;
+  aim.curX = clamp(x, 0, WIDTH);
+  aim.curY = clamp(y, 0, HEIGHT);
 }
 
 function pointerMove(x, y) {
   if (!aim.dragging) return;
-  aim.curX = x;
-  aim.curY = y;
+  aim.curX = clamp(x, 0, WIDTH);
+  aim.curY = clamp(y, 0, HEIGHT);
 }
 
 function pointerUp() {
@@ -547,6 +551,7 @@ function getChromaKeyedImage(src, tolerance = 55) {
 function preloadLevelImages() {
   getImage(BACKGROUND_IMAGE);
   getImage(PROJECTILE_IMAGE);
+  getImage(TITLE_IMAGE);
   for (const level of LEVELS) {
     if (level.launcher.image) getImage(level.launcher.image);
     if (level.portal.image) getImage(level.portal.image);
@@ -612,16 +617,17 @@ function drawObstacle(obstacle) {
   const img = obstacle.image ? getChromaKeyedImage(obstacle.image) : null;
 
   if (img) {
+    // The provided obstacle art already bakes in its own label text.
     drawImageContain(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
   } else {
     ctx.fillStyle = obstacle.color || COLORS.darkest;
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
-  }
 
-  ctx.fillStyle = COLORS.darkest;
-  ctx.font = '9px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(obstacle.label, obstacle.x + obstacle.w / 2, obstacle.y - 4);
+    ctx.fillStyle = COLORS.darkest;
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(obstacle.label, obstacle.x + obstacle.w / 2, obstacle.y - 4);
+  }
 }
 
 function drawPortal(portal) {
@@ -647,15 +653,23 @@ function drawPortal(portal) {
   }
 }
 
+// Visual-only nudge for the launcher sprite - the actual launcher.x/y
+// (aim pivot, projectile spawn point) is untouched so physics/hitboxes
+// don't shift, only where the sprite is drawn relative to it.
+const LAUNCHER_SPRITE_OFFSET_X = 16;
+const LAUNCHER_SPRITE_OFFSET_Y = -16;
+
 function drawLauncher(launcher) {
   const img = launcher.image ? getChromaKeyedImage(launcher.image) : null;
-  const size = 72;
+  const size = 96;
+  const drawX = launcher.x + LAUNCHER_SPRITE_OFFSET_X;
+  const drawY = launcher.y + LAUNCHER_SPRITE_OFFSET_Y;
 
   if (img) {
-    ctx.drawImage(img, launcher.x - size / 2, launcher.y - size / 2, size, size);
+    ctx.drawImage(img, drawX - size / 2, drawY - size / 2, size, size);
   } else {
     ctx.fillStyle = COLORS.darkest;
-    ctx.fillRect(launcher.x - 10, launcher.y - 10, 20, 20);
+    ctx.fillRect(drawX - 10, drawY - 10, 20, 20);
   }
 }
 
@@ -759,26 +773,6 @@ const BESTIARY_ICONS = {
 };
 
 // ---------- Attract mode: render ----------
-function drawPipelineMap() {
-  ctx.strokeStyle = COLORS.dark;
-  ctx.lineWidth = 3;
-  ctx.setLineDash([6, 8]);
-  ctx.beginPath();
-  ctx.moveTo(50, ATTRACT_VH - 60);
-  ctx.quadraticCurveTo(300, ATTRACT_VH - 200, 480, 260);
-  ctx.quadraticCurveTo(660, 120, ATTRACT_VW - 60, 90);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.fillStyle = COLORS.light;
-  const waypoints = [[50, ATTRACT_VH - 60], [230, ATTRACT_VH - 160], [400, 300], [560, 180], [740, 110], [ATTRACT_VW - 60, 90]];
-  for (const [wx, wy] of waypoints) {
-    ctx.beginPath();
-    ctx.arc(wx, wy, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
 function drawTitleBanner() {
   ctx.font = 'bold 46px "Courier New", monospace';
   ctx.textAlign = 'left';
@@ -848,13 +842,19 @@ function drawCallToAction() {
   ctx.fillText('[ PRESS S FOR CONFIG ]', ATTRACT_VW / 2, 512);
 }
 
+const TITLE_IMAGE = 'assets/images/Title Page.jpeg';
+
 function renderStartMenu() {
-  ctx.fillStyle = COLORS.darkest;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  const titleImg = getImage(TITLE_IMAGE);
+  if (isImageReady(titleImg)) {
+    drawImageCover(titleImg, 0, 0, WIDTH, HEIGHT);
+  } else {
+    ctx.fillStyle = COLORS.darkest;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  }
 
   ctx.save();
   ctx.scale(WIDTH / ATTRACT_VW, HEIGHT / ATTRACT_VH);
-  drawPipelineMap();
   drawHighScoreMarquee();
   drawTitleBanner();
   drawBestiaryCard();
@@ -864,7 +864,7 @@ function renderStartMenu() {
 }
 
 const BACKGROUND_IMAGE = 'assets/images/background.jpeg';
-const BACKGROUND_ALPHA = 0.45;
+const BACKGROUND_ALPHA = 0.75;
 
 function drawGameBackground() {
   ctx.fillStyle = '#FFFFFF';
