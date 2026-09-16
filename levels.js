@@ -29,22 +29,22 @@ window.GAME_LEVELS = [
     },
     planets: [
       {
-        label: 'SALES REP A',
+        label: 'BDR',
         x: 450,
         y: 650,
         radius: 40,
         mass: 710,
         color: '#4A90E2',
-        image: 'assets/images/rep_a.png',
+        image: 'assets/images/bdr.png',
       },
       {
-        label: 'SALES REP B',
+        label: 'CSM',
         x: 1050,
         y: 300,
         radius: 40,
         mass: 710,
         color: '#4A90E2',
-        image: 'assets/images/rep_b.png',
+        image: 'assets/images/csm.png',
       },
     ],
     obstacles: [
@@ -72,22 +72,22 @@ window.GAME_LEVELS = [
     },
     planets: [
       {
-        label: 'TEAM LEAD A',
+        label: 'Sales MM',
         x: 600,
         y: 600,
         radius: 45,
         mass: 900,
         color: '#4A90E2',
-        image: 'assets/images/lead_a.png',
+        image: 'assets/images/sales_mm.png',
       },
       {
-        label: 'TEAM LEAD B',
+        label: 'Sales SMB',
         x: 1100,
         y: 250,
         radius: 45,
         mass: 900,
         color: '#4A90E2',
-        image: 'assets/images/lead_b.png',
+        image: 'assets/images/sales_smb.png',
       },
     ],
     obstacles: [
@@ -115,13 +115,13 @@ window.GAME_LEVELS = [
     },
     planets: [
       {
-        label: 'OPS DIRECTOR',
+        label: 'RevOps',
         x: 800,
         y: 450,
         radius: 55,
         mass: 1340,
         color: '#9B59B6',
-        image: 'assets/images/ops_director.png',
+        image: 'assets/images/revops.png',
       },
     ],
     obstacles: [
@@ -158,7 +158,7 @@ window.GAME_LEVELS = [
     },
     planets: [
       {
-        label: 'THE CRO',
+        label: 'CRO',
         x: 700,
         y: 500,
         radius: 65,
@@ -192,7 +192,7 @@ window.GAME_LEVELS = [
     },
     planets: [
       {
-        label: 'THE CEO',
+        label: 'CEO',
         x: 800,
         y: 450,
         radius: 85,
@@ -203,13 +203,13 @@ window.GAME_LEVELS = [
     ],
     obstacles: [
       {
-        label: 'Changing Priorities',
+        label: 'Enablement Gap',
         x: 1000,
         y: 120,
         w: 400,
         h: 25,
         color: '#E74C3C',
-        image: 'assets/images/obstacle_changingpriorities.png',
+        image: 'assets/images/obstacle_enablementgap.png',
       },
     ],
   },
