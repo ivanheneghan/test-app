@@ -6,7 +6,11 @@
 // ---------- Canvas setup ----------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-ctx.imageSmoothingEnabled = false;
+// All provided art (portraits, backgrounds, splash, icons) is
+// photographic/illustrated rather than deliberately chunky pixel-art,
+// so smooth scaling looks better than nearest-neighbor here.
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = 'high';
 
 const WIDTH = canvas.width;   // 1600
 const HEIGHT = canvas.height; // 900
@@ -154,6 +158,7 @@ let projectile = null; // { x, y, vx, vy }
 let aim = { dragging: false, startX: 0, startY: 0, curX: 0, curY: 0 };
 let reloadTimer = null;
 
+const hud = document.getElementById('hud');
 const hudLevel = document.getElementById('hud-level');
 const hudBest = document.getElementById('hud-best');
 const banner = document.getElementById('banner');
@@ -169,13 +174,14 @@ let configOpen = false;
 function updateHud() {
   const level = LevelManager.current;
   hudLevel.textContent = level.title ? `LEVEL ${level.id}: ${level.title}` : `LEVEL ${level.id}`;
-  hudBest.textContent = `BEST: ${LevelManager.getBest()}`;
+  hudBest.textContent = `HIGH SCORE: ${LevelManager.getBest()}`;
 }
 
 function startLevel(index) {
   LevelManager.load(index);
   projectile = null;
   state = STATE.IDLE_AIM;
+  hud.classList.remove('hidden');
   banner.classList.add('hidden');
   failBanner.classList.add('hidden');
   updateHud();
@@ -214,6 +220,9 @@ trajectoryToggle.addEventListener('click', (e) => {
 function enterStartMenu() {
   state = STATE.START_MENU;
   resetAttractMode();
+  hud.classList.add('hidden');
+  banner.classList.add('hidden');
+  failBanner.classList.add('hidden');
   startScreen.classList.remove('hidden');
 }
 
@@ -228,9 +237,22 @@ function beginGame() {
   startLevel(0); // always start a fresh run from Level 1; best level persists separately
 }
 
+function returnToHome() {
+  if (state === STATE.START_MENU) return;
+  clearTimeout(reloadTimer);
+  projectile = null;
+  aim.dragging = false;
+  enterStartMenu();
+}
+
 startScreen.addEventListener('click', beginGame);
 canvas.addEventListener('click', resetAfterVictory);
 window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') {
+    e.preventDefault();
+    returnToHome();
+    return;
+  }
   if (state === STATE.VICTORY && e.code === 'Space') {
     e.preventDefault();
     resetAfterVictory();
@@ -508,7 +530,42 @@ function findBorderModeColor(d, w, h) {
   return [((bestKey >> 10) & 31) << 3, ((bestKey >> 5) & 31) << 3, (bestKey & 31) << 3];
 }
 
-function getChromaKeyedImage(src, tolerance = 55) {
+// Eats thin leftover opaque specks (e.g. a grid line whose anti-aliased
+// edge fell just outside the color-distance tolerance): any still-opaque
+// pixel whose neighborhood is mostly already-transparent gets cleared
+// too. Solid interior regions (actual portrait/icon content) are
+// unaffected since their neighbors stay opaque.
+function despeckleAlpha(d, w, h, passes = 2) {
+  const count = w * h;
+  for (let p = 0; p < passes; p++) {
+    const alphaBefore = new Uint8ClampedArray(count);
+    for (let i = 0; i < count; i++) alphaBefore[i] = d[i * 4 + 3];
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (alphaBefore[idx] === 0) continue;
+
+        let total = 0;
+        let transparentNeighbors = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+            total++;
+            if (alphaBefore[ny * w + nx] === 0) transparentNeighbors++;
+          }
+        }
+        if (total > 0 && transparentNeighbors / total >= 0.6) {
+          d[idx * 4 + 3] = 0;
+        }
+      }
+    }
+  }
+}
+
+function getChromaKeyedImage(src, tolerance = 65) {
   if (ChromaKeyCache[src] !== undefined) return ChromaKeyCache[src];
 
   const img = getImage(src);
@@ -533,6 +590,8 @@ function getChromaKeyedImage(src, tolerance = 55) {
         d[i + 3] = 0;
       }
     }
+
+    despeckleAlpha(d, off.width, off.height);
 
     octx.putImageData(frame, 0, 0);
     ChromaKeyCache[src] = off;
@@ -587,39 +646,56 @@ function drawImageContain(img, x, y, w, h) {
   ctx.drawImage(img, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
 }
 
+// Visual-only enlargement for portraits - planet.radius (gravity pull
+// trigger) and mass/gravity math are untouched, only how big the
+// portrait is drawn on screen.
+const PEOPLE_VISUAL_SCALE = 3;
+
 function drawPlanet(planet) {
   const entity = ENTITY_TYPES[planet.type];
   const label = planet.label || (entity && entity.label) || planet.type;
   const img = planet.image ? getChromaKeyedImage(planet.image) : null;
-  const size = planet.radius * 2;
+  const visualRadius = planet.radius * PEOPLE_VISUAL_SCALE;
+  const size = visualRadius * 2;
 
   if (img) {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+    ctx.arc(planet.x, planet.y, visualRadius, 0, Math.PI * 2);
     ctx.clip();
-    drawImageCover(img, planet.x - planet.radius, planet.y - planet.radius, size, size, 1.15);
+    drawImageCover(img, planet.x - visualRadius, planet.y - visualRadius, size, size, 1.15);
     ctx.restore();
   } else {
     ctx.fillStyle = planet.color || (entity && COLORS[entity.colorKey]) || COLORS.dark;
     ctx.beginPath();
-    ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+    ctx.arc(planet.x, planet.y, visualRadius, 0, Math.PI * 2);
     ctx.fill();
   }
 
   ctx.fillStyle = COLORS.darkest;
   ctx.font = '10px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(label, planet.x, planet.y - planet.radius - 6);
+  ctx.fillText(label, planet.x, planet.y - visualRadius - 6);
 }
+
+// Visual-only enlargement for obstacle art - the real AABB hitbox used
+// for collision (obstacle.x/y/w/h) is untouched, so difficulty/level
+// layout doesn't change, only how big the icon is drawn on screen.
+const BLOCKER_VISUAL_SCALE = 3;
 
 function drawObstacle(obstacle) {
   const img = obstacle.image ? getChromaKeyedImage(obstacle.image) : null;
 
   if (img) {
     // The provided obstacle art already bakes in its own label text.
-    drawImageContain(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+    const visualW = obstacle.w * BLOCKER_VISUAL_SCALE;
+    const visualH = obstacle.h * BLOCKER_VISUAL_SCALE;
+    const cx = obstacle.x + obstacle.w / 2;
+    const cy = obstacle.y + obstacle.h / 2;
+    drawImageContain(img, cx - visualW / 2, cy - visualH / 2, visualW, visualH);
   } else {
+    // No image yet - draw at the true hitbox size so the fallback
+    // doesn't misrepresent where the actual hazard boundary is.
     ctx.fillStyle = obstacle.color || COLORS.darkest;
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
 
@@ -806,7 +882,7 @@ function drawHighScoreMarquee() {
 function drawBestiaryCard() {
   const card = BESTIARY[attract.cardIndex];
   const boxX = ATTRACT_VW / 2 - 260;
-  const boxY = 370;
+  const boxY = 434;
   const boxW = 520;
   const boxH = 46;
 
@@ -828,7 +904,7 @@ function drawTicker() {
   ctx.fillStyle = COLORS.lightest;
   ctx.font = '12px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText(TICKER_TEXT, attract.tickerX, 448);
+  ctx.fillText(TICKER_TEXT, attract.tickerX, 496);
 }
 
 function drawCallToAction() {
@@ -836,10 +912,10 @@ function drawCallToAction() {
   ctx.fillStyle = COLORS.lightest;
   ctx.font = 'bold 13px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('[ INSERT COIN / PRESS SPACE TO ENTER THE GAUNTLET ]', ATTRACT_VW / 2, 490);
+  ctx.fillText('[ INSERT COIN / PRESS SPACE TO ENTER THE GAUNTLET ]', ATTRACT_VW / 2, 514);
 
   ctx.font = '10px monospace';
-  ctx.fillText('[ PRESS S FOR CONFIG ]', ATTRACT_VW / 2, 512);
+  ctx.fillText('[ PRESS S FOR CONFIG ]', ATTRACT_VW / 2, 530);
 }
 
 const TITLE_IMAGE = 'assets/images/Title Page.jpeg';

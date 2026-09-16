@@ -34,8 +34,10 @@ html, body {
   aspect-ratio: 16 / 9;
   width: min(100vw, 177.78vh);
   height: min(56.25vw, 100vh);
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  /* The provided art (portraits, backgrounds, splash) is photographic/
+     illustrated, not deliberately chunky pixel-art, so let the browser
+     scale the canvas smoothly instead of forcing nearest-neighbor
+     (which made everything look blocky once displayed above 1600px). */
   border: 4px solid var(--gb-darkest);
 }
 
