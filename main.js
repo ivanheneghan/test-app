@@ -1,6 +1,6 @@
 // ============================================================
 // Logic/Middleware layer: game loop, physics, input, state machine
-// Data layer: LEVELS array (mock level configs) + localStorage persistence
+// Data layer: window.GAME_LEVELS (levels.js) + localStorage persistence
 // ============================================================
 
 // ---------- Canvas setup ----------
@@ -8,12 +8,12 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
-const WIDTH = canvas.width;   // 960
-const HEIGHT = canvas.height; // 540
+const WIDTH = canvas.width;   // 1600
+const HEIGHT = canvas.height; // 900
 
-// ---------- Data layer: level + entity hooks (populated by data.js) ----------
+// ---------- Data layer: level + entity hooks (populated by levels.js / data.js) ----------
 const LEVELS = window.GAME_LEVELS;
-const ENTITY_TYPES = window.ENTITY_TYPES;
+const ENTITY_TYPES = window.ENTITY_TYPES || {};
 
 // ---------- Theme palettes ----------
 const THEMES = {
@@ -22,6 +22,12 @@ const THEMES = {
 };
 
 // ---------- Attract mode (START_MENU) content ----------
+// Laid out against a fixed 960x540 virtual canvas, then scaled up to the
+// real canvas resolution in renderStartMenu() so it stays proportional
+// regardless of the game's actual internal resolution.
+const ATTRACT_VW = 960;
+const ATTRACT_VH = 540;
+
 const BESTIARY = [
   { type: 'CFO', text: 'THE CFO: SLOWS VELOCITY (BUDGET DRAIN)' },
   { type: 'VP_SALES', text: 'VP SALES: TURBO SLINGSHOT (QUOTA BOOST)' },
@@ -42,7 +48,7 @@ let attract = {
   cardTimer: 0,
   ctaVisible: true,
   ctaTimer: 0,
-  tickerX: WIDTH,
+  tickerX: ATTRACT_VW,
 };
 
 function resetAttractMode() {
@@ -53,7 +59,7 @@ function resetAttractMode() {
     cardTimer: 0,
     ctaVisible: true,
     ctaTimer: 0,
-    tickerX: WIDTH,
+    tickerX: ATTRACT_VW,
   };
 }
 
@@ -150,6 +156,8 @@ let reloadTimer = null;
 const hudLevel = document.getElementById('hud-level');
 const hudBest = document.getElementById('hud-best');
 const banner = document.getElementById('banner');
+const bannerText = document.getElementById('banner-text');
+const bannerSub = document.getElementById('banner-sub');
 const failBanner = document.getElementById('fail-banner');
 const startScreen = document.getElementById('start-screen');
 const configOverlay = document.getElementById('config-overlay');
@@ -158,7 +166,8 @@ const trajectoryToggle = document.getElementById('trajectory-toggle');
 let configOpen = false;
 
 function updateHud() {
-  hudLevel.textContent = `LEVEL ${LevelManager.current.id}`;
+  const level = LevelManager.current;
+  hudLevel.textContent = level.title ? `LEVEL ${level.id}: ${level.title}` : `LEVEL ${level.id}`;
   hudBest.textContent = `BEST: ${LevelManager.getBest()}`;
 }
 
@@ -215,7 +224,7 @@ function toggleConfig() {
 function beginGame() {
   if (state !== STATE.START_MENU || configOpen) return;
   startScreen.classList.add('hidden');
-  startLevel(0);
+  startLevel(LevelManager.getBest() - 1); // resume from the last unlocked level
 }
 
 startScreen.addEventListener('click', beginGame);
@@ -309,24 +318,24 @@ window.addEventListener('touchend', (e) => {
 }, { passive: false });
 
 // ---------- Physics helpers ----------
-function applyGravityAndExecNodes(p, dt) {
+function applyGravityAndExecPlanets(p, dt) {
   const level = LevelManager.current;
-  for (const node of level.nodes) {
-    const dx = node.x - p.x;
-    const dy = node.y - p.y;
+  for (const planet of level.planets) {
+    const dx = planet.x - p.x;
+    const dy = planet.y - p.y;
     const distSq = Math.max(dx * dx + dy * dy, 100); // avoid singularity
     const dist = Math.sqrt(distSq);
 
-    // F = G * (m1 * m2) / r^2, applied toward node
-    const force = (G * node.mass * node.multiplier * PROJECTILE_MASS) / distSq;
+    // F = G * (m1 * m2) / r^2, using planet.mass and planet.radius directly
+    const force = (G * planet.mass * PROJECTILE_MASS) / distSq;
     const ax = (dx / dist) * force;
     const ay = (dy / dist) * force;
     p.vx += ax * dt;
     p.vy += ay * dt;
 
     // Executive logic: within pull radius, apply the entity's velocity factor
-    if (dist <= node.radius) {
-      const entity = ENTITY_TYPES[node.type];
+    if (dist <= planet.radius) {
+      const entity = ENTITY_TYPES[planet.type];
       if (entity) {
         const frames = dt * 60;
         const factor = Math.pow(entity.velocityFactor, frames);
@@ -359,12 +368,21 @@ function triggerFail() {
 function triggerWin() {
   state = STATE.WIN;
   LevelManager.saveProgress();
-  banner.classList.remove('hidden');
   updateHud();
+
+  const isFinalLevel = LevelManager.index === LEVELS.length - 1;
+  bannerText.textContent = isFinalLevel ? 'VICTORY!' : 'DEAL CLOSED!';
+  bannerSub.textContent = isFinalLevel ? 'ALL DEALS CLOSED!' : 'Loading next lead...';
+  banner.classList.remove('hidden');
+
   clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
     banner.classList.add('hidden');
-    startLevel(LevelManager.index + 1);
+    if (isFinalLevel) {
+      enterStartMenu();
+    } else {
+      startLevel(LevelManager.index + 1);
+    }
   }, WIN_BANNER_MS);
 }
 
@@ -372,23 +390,23 @@ function triggerWin() {
 function update(dt) {
   if (state !== STATE.IN_FLIGHT || !projectile) return;
 
-  applyGravityAndExecNodes(projectile, dt);
+  applyGravityAndExecPlanets(projectile, dt);
   projectile.x += projectile.vx * dt;
   projectile.y += projectile.vy * dt;
 
   const level = LevelManager.current;
 
-  // Goal check
-  const gdx = projectile.x - level.goal.x;
-  const gdy = projectile.y - level.goal.y;
-  if (Math.sqrt(gdx * gdx + gdy * gdy) <= level.goal.radius + PROJECTILE_RADIUS) {
+  // Portal (goal) check
+  const gdx = projectile.x - level.portal.x;
+  const gdy = projectile.y - level.portal.y;
+  if (Math.sqrt(gdx * gdx + gdy * gdy) <= level.portal.radius + PROJECTILE_RADIUS) {
     triggerWin();
     return;
   }
 
-  // Blocker collision
-  for (const b of level.blockers) {
-    if (circleRectCollision(projectile.x, projectile.y, PROJECTILE_RADIUS, b)) {
+  // Obstacle AABB collision
+  for (const obstacle of level.obstacles) {
+    if (circleRectCollision(projectile.x, projectile.y, PROJECTILE_RADIUS, obstacle)) {
       triggerFail();
       return;
     }
@@ -409,7 +427,7 @@ function computeTrajectory(startX, startY, vx, vy) {
   const points = [];
   const sim = { x: startX, y: startY, vx, vy };
   for (let i = 0; i < TRAJECTORY_STEPS; i++) {
-    applyGravityAndExecNodes(sim, TRAJECTORY_STEP_DT);
+    applyGravityAndExecPlanets(sim, TRAJECTORY_STEP_DT);
     sim.x += sim.vx * TRAJECTORY_STEP_DT;
     sim.y += sim.vy * TRAJECTORY_STEP_DT;
     points.push({ x: sim.x, y: sim.y });
@@ -417,46 +435,91 @@ function computeTrajectory(startX, startY, vx, vy) {
   return points;
 }
 
+// ---------- Image loading (provided assets, with procedural fallback) ----------
+const ImageCache = {};
+
+function getImage(src) {
+  if (!ImageCache[src]) {
+    const img = new Image();
+    img.src = src;
+    ImageCache[src] = img;
+  }
+  return ImageCache[src];
+}
+
+function isImageReady(img) {
+  return img && img.complete && img.naturalWidth > 0;
+}
+
+// Dynamic asset preloader: walk every level's portal/planets/obstacles and
+// kick off loading for each referenced image up front, so most assets are
+// already decoded by the time a level using them is reached.
+function preloadLevelImages() {
+  for (const level of LEVELS) {
+    if (level.portal.image) getImage(level.portal.image);
+    for (const planet of level.planets) {
+      if (planet.image) getImage(planet.image);
+    }
+    for (const obstacle of level.obstacles) {
+      if (obstacle.image) getImage(obstacle.image);
+    }
+  }
+}
+
 // ---------- Render ----------
-function drawNode(node) {
-  const entity = ENTITY_TYPES[node.type] || { colorKey: 'dark', label: node.type };
+function drawPlanet(planet) {
+  const entity = ENTITY_TYPES[planet.type];
+  const label = planet.label || (entity && entity.label) || planet.type;
+  const img = planet.image ? getImage(planet.image) : null;
+  const size = planet.radius * 2;
 
-  ctx.fillStyle = COLORS[entity.colorKey];
-  ctx.beginPath();
-  ctx.arc(node.x, node.y, 14, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = COLORS.dark;
-  ctx.setLineDash([4, 6]);
-  ctx.beginPath();
-  ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  if (isImageReady(img)) {
+    ctx.drawImage(img, planet.x - planet.radius, planet.y - planet.radius, size, size);
+  } else {
+    ctx.fillStyle = planet.color || (entity && COLORS[entity.colorKey]) || COLORS.dark;
+    ctx.beginPath();
+    ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   ctx.fillStyle = COLORS.darkest;
   ctx.font = '10px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(entity.label, node.x, node.y - node.radius - 6);
+  ctx.fillText(label, planet.x, planet.y - planet.radius - 6);
 }
 
-function drawBlocker(b) {
-  ctx.fillStyle = COLORS.darkest;
-  ctx.fillRect(b.x, b.y, b.w, b.h);
+function drawObstacle(obstacle) {
+  const img = obstacle.image ? getImage(obstacle.image) : null;
+
+  if (isImageReady(img)) {
+    ctx.drawImage(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+  } else {
+    ctx.fillStyle = obstacle.color || COLORS.darkest;
+    ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+  }
+
   ctx.fillStyle = COLORS.lightest;
   ctx.font = '9px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(b.label, b.x + b.w / 2, b.y - 4);
+  ctx.fillText(obstacle.label, obstacle.x + obstacle.w / 2, obstacle.y - 4);
 }
 
-function drawGoal(goal) {
-  ctx.fillStyle = COLORS.dark;
-  ctx.beginPath();
-  ctx.arc(goal.x, goal.y, goal.radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = COLORS.darkest;
-  ctx.font = 'bold 10px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('DEAL', goal.x, goal.y + 3);
+function drawPortal(portal) {
+  const img = portal.image ? getImage(portal.image) : null;
+  const size = portal.radius * 2;
+
+  if (isImageReady(img)) {
+    ctx.drawImage(img, portal.x - portal.radius, portal.y - portal.radius, size, size);
+  } else {
+    ctx.fillStyle = portal.color || COLORS.dark;
+    ctx.beginPath();
+    ctx.arc(portal.x, portal.y, portal.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.darkest;
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('DEAL', portal.x, portal.y + 3);
+  }
 }
 
 function drawLauncher(launcher) {
@@ -502,7 +565,7 @@ function updateAttractMode(dt) {
   attract.tickerX -= TICKER_SPEED_PX_PER_SEC * dt;
   ctx.font = '12px monospace';
   const tickerWidth = ctx.measureText(TICKER_TEXT).width;
-  if (attract.tickerX < -tickerWidth) attract.tickerX = WIDTH;
+  if (attract.tickerX < -tickerWidth) attract.tickerX = ATTRACT_VW;
 }
 
 // ---------- Attract mode: pixel bestiary icons ----------
@@ -556,14 +619,14 @@ function drawPipelineMap() {
   ctx.lineWidth = 3;
   ctx.setLineDash([6, 8]);
   ctx.beginPath();
-  ctx.moveTo(50, HEIGHT - 60);
-  ctx.quadraticCurveTo(300, HEIGHT - 200, 480, 260);
-  ctx.quadraticCurveTo(660, 120, WIDTH - 60, 90);
+  ctx.moveTo(50, ATTRACT_VH - 60);
+  ctx.quadraticCurveTo(300, ATTRACT_VH - 200, 480, 260);
+  ctx.quadraticCurveTo(660, 120, ATTRACT_VW - 60, 90);
   ctx.stroke();
   ctx.setLineDash([]);
 
   ctx.fillStyle = COLORS.light;
-  const waypoints = [[50, HEIGHT - 60], [230, HEIGHT - 160], [400, 300], [560, 180], [740, 110], [WIDTH - 60, 90]];
+  const waypoints = [[50, ATTRACT_VH - 60], [230, ATTRACT_VH - 160], [400, 300], [560, 180], [740, 110], [ATTRACT_VW - 60, 90]];
   for (const [wx, wy] of waypoints) {
     ctx.beginPath();
     ctx.arc(wx, wy, 4, 0, Math.PI * 2);
@@ -575,7 +638,7 @@ function drawTitleBanner() {
   ctx.font = 'bold 46px "Courier New", monospace';
   ctx.textAlign = 'left';
   const totalWidth = ctx.measureText(TITLE_TEXT.replace(/ /g, 'X')).width;
-  let x = WIDTH / 2 - totalWidth / 2;
+  let x = ATTRACT_VW / 2 - totalWidth / 2;
   const y = 78;
   const amplitude = attract.flicker ? 1 : 0.4;
 
@@ -595,15 +658,15 @@ function drawTitleBanner() {
 
 function drawHighScoreMarquee() {
   const score = String(LevelManager.getBest()).padStart(4, '0');
-  ctx.fillStyle = COLORS.darkest;
+  ctx.fillStyle = COLORS.lightest;
   ctx.font = 'bold 14px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(`HIGH SCORE: ${score}`, WIDTH / 2, 26);
+  ctx.fillText(`HIGH SCORE: ${score}`, ATTRACT_VW / 2, 26);
 }
 
 function drawBestiaryCard() {
   const card = BESTIARY[attract.cardIndex];
-  const boxX = WIDTH / 2 - 260;
+  const boxX = ATTRACT_VW / 2 - 260;
   const boxY = 370;
   const boxW = 520;
   const boxH = 46;
@@ -623,7 +686,7 @@ function drawBestiaryCard() {
 }
 
 function drawTicker() {
-  ctx.fillStyle = COLORS.darkest;
+  ctx.fillStyle = COLORS.lightest;
   ctx.font = '12px monospace';
   ctx.textAlign = 'left';
   ctx.fillText(TICKER_TEXT, attract.tickerX, 448);
@@ -631,25 +694,28 @@ function drawTicker() {
 
 function drawCallToAction() {
   if (!attract.ctaVisible) return;
-  ctx.fillStyle = COLORS.darkest;
+  ctx.fillStyle = COLORS.lightest;
   ctx.font = 'bold 13px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('[ INSERT COIN / PRESS SPACE TO ENTER THE GAUNTLET ]', WIDTH / 2, 490);
+  ctx.fillText('[ INSERT COIN / PRESS SPACE TO ENTER THE GAUNTLET ]', ATTRACT_VW / 2, 490);
 
   ctx.font = '10px monospace';
-  ctx.fillText('[ PRESS S FOR CONFIG ]', WIDTH / 2, 512);
+  ctx.fillText('[ PRESS S FOR CONFIG ]', ATTRACT_VW / 2, 512);
 }
 
 function renderStartMenu() {
   ctx.fillStyle = COLORS.darkest;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
+  ctx.save();
+  ctx.scale(WIDTH / ATTRACT_VW, HEIGHT / ATTRACT_VH);
   drawPipelineMap();
   drawHighScoreMarquee();
   drawTitleBanner();
   drawBestiaryCard();
   drawTicker();
   drawCallToAction();
+  ctx.restore();
 }
 
 function render() {
@@ -663,9 +729,9 @@ function render() {
 
   const level = LevelManager.current;
 
-  for (const b of level.blockers) drawBlocker(b);
-  for (const n of level.nodes) drawNode(n);
-  drawGoal(level.goal);
+  for (const obstacle of level.obstacles) drawObstacle(obstacle);
+  for (const planet of level.planets) drawPlanet(planet);
+  drawPortal(level.portal);
   drawLauncher(level.launcher);
 
   if (state === STATE.IDLE_AIM && aim.dragging) {
@@ -709,5 +775,6 @@ function loop(now) {
 Settings.load();
 applyTheme(Settings.theme);
 applyTrajectoryMode(Settings.trajectory);
+preloadLevelImages();
 enterStartMenu();
 requestAnimationFrame(loop);
