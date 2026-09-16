@@ -64,6 +64,7 @@ html, body {
   transform: translate(-50%, -50%);
   text-align: center;
   padding: 20px 40px;
+  max-width: min(80vw, 640px);
   border: 3px solid var(--gb-darkest);
   background: var(--gb-light);
   color: var(--gb-darkest);
@@ -77,8 +78,9 @@ html, body {
 }
 
 #banner-sub, #fail-sub {
-  font-size: 14px;
+  font-size: 13px;
   margin-top: 6px;
+  line-height: 1.5;
 }
 
 #fail-banner {

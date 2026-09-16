@@ -86,6 +86,7 @@ const STATE = {
   IDLE_AIM: 'IDLE_AIM',
   IN_FLIGHT: 'IN_FLIGHT',
   WIN: 'WIN',
+  VICTORY: 'VICTORY', // persistent - all levels cleared, waits for player input
   FAIL: 'FAIL',
 };
 
@@ -228,7 +229,13 @@ function beginGame() {
 }
 
 startScreen.addEventListener('click', beginGame);
+canvas.addEventListener('click', resetAfterVictory);
 window.addEventListener('keydown', (e) => {
+  if (state === STATE.VICTORY && e.code === 'Space') {
+    e.preventDefault();
+    resetAfterVictory();
+    return;
+  }
   if (state !== STATE.START_MENU) return;
   if (e.code === 'Space') {
     e.preventDefault();
@@ -366,24 +373,38 @@ function triggerFail() {
 }
 
 function triggerWin() {
-  state = STATE.WIN;
   LevelManager.saveProgress();
   updateHud();
 
   const isFinalLevel = LevelManager.index === LEVELS.length - 1;
-  bannerText.textContent = isFinalLevel ? 'VICTORY!' : 'DEAL CLOSED!';
-  bannerSub.textContent = isFinalLevel ? 'ALL DEALS CLOSED!' : 'Loading next lead...';
+
+  if (isFinalLevel) {
+    // Persistent victory screen: stays up until the player acts, then
+    // resets the run back to Level 1 (see the VICTORY handling in the
+    // click/keydown listeners below).
+    state = STATE.VICTORY;
+    bannerText.textContent = 'VICTORY!';
+    bannerSub.textContent = 'ALL DEALS CLOSED! [ PRESS SPACE OR CLICK TO PLAY AGAIN ]';
+    banner.classList.remove('hidden');
+    return;
+  }
+
+  state = STATE.WIN;
+  bannerText.textContent = 'DEAL CLOSED!';
+  bannerSub.textContent = 'Loading next lead...';
   banner.classList.remove('hidden');
 
   clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
     banner.classList.add('hidden');
-    if (isFinalLevel) {
-      enterStartMenu();
-    } else {
-      startLevel(LevelManager.index + 1);
-    }
+    startLevel(LevelManager.index + 1);
   }, WIN_BANNER_MS);
+}
+
+function resetAfterVictory() {
+  if (state !== STATE.VICTORY) return;
+  banner.classList.add('hidden');
+  enterStartMenu();
 }
 
 // ---------- Update ----------
@@ -457,7 +478,33 @@ function isImageReady(img) {
 // so they blend with the game background instead of showing as a box.
 const ChromaKeyCache = {};
 
-function getChromaKeyedImage(src, tolerance = 40) {
+// Finds the dominant color along the image's outer border (as a coarse
+// histogram mode) instead of trusting a single corner pixel - robust
+// against a textured/gridded background where one pixel might land on
+// a grid line instead of the fill color.
+function findBorderModeColor(d, w, h) {
+  const borderPx = Math.max(4, Math.round(Math.min(w, h) * 0.06));
+  const counts = new Map();
+
+  const bucket = (x, y) => {
+    const i = (y * w + x) * 4;
+    const key = ((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  };
+
+  for (let y = 0; y < borderPx; y++) for (let x = 0; x < w; x++) bucket(x, y);
+  for (let y = h - borderPx; y < h; y++) for (let x = 0; x < w; x++) bucket(x, y);
+  for (let x = 0; x < borderPx; x++) for (let y = 0; y < h; y++) bucket(x, y);
+  for (let x = w - borderPx; x < w; x++) for (let y = 0; y < h; y++) bucket(x, y);
+
+  let bestKey = 0, bestCount = -1;
+  for (const [key, count] of counts) {
+    if (count > bestCount) { bestCount = count; bestKey = key; }
+  }
+  return [((bestKey >> 10) & 31) << 3, ((bestKey >> 5) & 31) << 3, (bestKey & 31) << 3];
+}
+
+function getChromaKeyedImage(src, tolerance = 55) {
   if (ChromaKeyCache[src] !== undefined) return ChromaKeyCache[src];
 
   const img = getImage(src);
@@ -472,7 +519,7 @@ function getChromaKeyedImage(src, tolerance = 40) {
 
     const frame = octx.getImageData(0, 0, off.width, off.height);
     const d = frame.data;
-    const bg = [d[0], d[1], d[2]]; // sample the top-left corner as background
+    const bg = findBorderModeColor(d, off.width, off.height);
 
     for (let i = 0; i < d.length; i += 4) {
       const dr = d[i] - bg[0];
@@ -602,7 +649,7 @@ function drawPortal(portal) {
 
 function drawLauncher(launcher) {
   const img = launcher.image ? getChromaKeyedImage(launcher.image) : null;
-  const size = 44;
+  const size = 72;
 
   if (img) {
     ctx.drawImage(img, launcher.x - size / 2, launcher.y - size / 2, size, size);
@@ -613,7 +660,7 @@ function drawLauncher(launcher) {
 }
 
 const PROJECTILE_IMAGE = 'assets/images/Rocket.png';
-const PROJECTILE_SPRITE_SIZE = 22; // visual size only - collision still uses PROJECTILE_RADIUS
+const PROJECTILE_SPRITE_SIZE = 40; // visual size only - collision still uses PROJECTILE_RADIUS
 
 function drawProjectile(p) {
   const img = getChromaKeyedImage(PROJECTILE_IMAGE);
@@ -817,7 +864,7 @@ function renderStartMenu() {
 }
 
 const BACKGROUND_IMAGE = 'assets/images/background.jpeg';
-const BACKGROUND_ALPHA = 0.2;
+const BACKGROUND_ALPHA = 0.45;
 
 function drawGameBackground() {
   ctx.fillStyle = '#FFFFFF';
