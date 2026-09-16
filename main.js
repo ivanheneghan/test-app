@@ -456,6 +456,7 @@ function isImageReady(img) {
 // already decoded by the time a level using them is reached.
 function preloadLevelImages() {
   for (const level of LEVELS) {
+    if (level.launcher.image) getImage(level.launcher.image);
     if (level.portal.image) getImage(level.portal.image);
     for (const planet of level.planets) {
       if (planet.image) getImage(planet.image);
@@ -523,8 +524,15 @@ function drawPortal(portal) {
 }
 
 function drawLauncher(launcher) {
-  ctx.fillStyle = COLORS.darkest;
-  ctx.fillRect(launcher.x - 10, launcher.y - 10, 20, 20);
+  const img = launcher.image ? getImage(launcher.image) : null;
+  const size = 44;
+
+  if (isImageReady(img)) {
+    ctx.drawImage(img, launcher.x - size / 2, launcher.y - size / 2, size, size);
+  } else {
+    ctx.fillStyle = COLORS.darkest;
+    ctx.fillRect(launcher.x - 10, launcher.y - 10, 20, 20);
+  }
 }
 
 function drawProjectile(p) {

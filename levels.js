@@ -9,17 +9,18 @@
  *
  * Executive entities are represented by generic role aliases rather
  * than real names/photos, per data-protection guardrails (CLAUDE.md
- * section 8: no employee names/PII in committed code). `image` paths
- * point into /assets/images/ per CLAUDE.md's asset path rule; until
- * those files are provided, main.js falls back to the `color` hex
- * value below for procedural rendering.
+ * section 8: no employee names/PII in committed code) — assets in
+ * /assets/images/ have been renamed to match (e.g. BDR.jpeg, CRO.jpeg).
+ * If an `image` fails to load (missing, or the still-placeholder
+ * CEO.png), main.js falls back to the `color` hex value below for
+ * procedural rendering.
  */
 
 window.GAME_LEVELS = [
   {
     id: 1,
     title: 'Onboarding & First Pull',
-    launcher: { x: 150, y: 800 },
+    launcher: { x: 150, y: 800, image: 'assets/images/Sales Person.png' },
     portal: {
       x: 1450,
       y: 150,
@@ -35,7 +36,7 @@ window.GAME_LEVELS = [
         radius: 40,
         mass: 710,
         color: '#4A90E2',
-        image: 'assets/images/bdr.png',
+        image: 'assets/images/BDR.jpeg',
       },
       {
         label: 'CSM',
@@ -44,7 +45,7 @@ window.GAME_LEVELS = [
         radius: 40,
         mass: 710,
         color: '#4A90E2',
-        image: 'assets/images/csm.png',
+        image: 'assets/images/CSM.jpeg',
       },
     ],
     obstacles: [
@@ -55,14 +56,14 @@ window.GAME_LEVELS = [
         w: 250,
         h: 25,
         color: '#E74C3C',
-        image: 'assets/images/obstacle_nodata.png',
+        image: 'assets/images/No Data.png',
       },
     ],
   },
   {
     id: 2,
     title: 'Cross-Functional S-Curve',
-    launcher: { x: 150, y: 800 },
+    launcher: { x: 150, y: 800, image: 'assets/images/Sales Person.png' },
     portal: {
       x: 1450,
       y: 150,
@@ -78,7 +79,7 @@ window.GAME_LEVELS = [
         radius: 45,
         mass: 900,
         color: '#4A90E2',
-        image: 'assets/images/sales_mm.png',
+        image: 'assets/images/SalesMM.jpeg',
       },
       {
         label: 'Sales SMB',
@@ -87,7 +88,7 @@ window.GAME_LEVELS = [
         radius: 45,
         mass: 900,
         color: '#4A90E2',
-        image: 'assets/images/sales_smb.png',
+        image: 'assets/images/SalesSMB.jpeg',
       },
     ],
     obstacles: [
@@ -98,14 +99,14 @@ window.GAME_LEVELS = [
         w: 40,
         h: 220,
         color: '#E74C3C',
-        image: 'assets/images/obstacle_brokenprocesses.png',
+        image: 'assets/images/Broken Process.png',
       },
     ],
   },
   {
     id: 3,
     title: 'RevOps Alignment',
-    launcher: { x: 150, y: 800 },
+    launcher: { x: 150, y: 800, image: 'assets/images/Sales Person.png' },
     portal: {
       x: 1450,
       y: 150,
@@ -121,7 +122,7 @@ window.GAME_LEVELS = [
         radius: 55,
         mass: 1340,
         color: '#9B59B6',
-        image: 'assets/images/revops.png',
+        image: 'assets/images/RevOps.jpeg',
       },
     ],
     obstacles: [
@@ -132,7 +133,7 @@ window.GAME_LEVELS = [
         w: 300,
         h: 25,
         color: '#E74C3C',
-        image: 'assets/images/obstacle_roadmaps.png',
+        image: 'assets/images/Roadmaps.png',
       },
       {
         label: 'Misaligned KPIs',
@@ -141,14 +142,14 @@ window.GAME_LEVELS = [
         w: 25,
         h: 300,
         color: '#E74C3C',
-        image: 'assets/images/obstacle_kpis.png',
+        image: 'assets/images/Misaligned KPIs.png',
       },
     ],
   },
   {
     id: 4,
     title: 'CRO Approval',
-    launcher: { x: 150, y: 800 },
+    launcher: { x: 150, y: 800, image: 'assets/images/Sales Person.png' },
     portal: {
       x: 1450,
       y: 150,
@@ -164,7 +165,7 @@ window.GAME_LEVELS = [
         radius: 65,
         mass: 1875,
         color: '#E67E22',
-        image: 'assets/images/cro.png',
+        image: 'assets/images/CRO.jpeg',
       },
     ],
     obstacles: [
@@ -175,14 +176,14 @@ window.GAME_LEVELS = [
         w: 300,
         h: 25,
         color: '#E74C3C',
-        image: 'assets/images/obstacle_systempriorities.png',
+        image: 'assets/images/Systems Priorities.png',
       },
     ],
   },
   {
     id: 5,
     title: 'CEO Directives',
-    launcher: { x: 150, y: 800 },
+    launcher: { x: 150, y: 800, image: 'assets/images/Sales Person.png' },
     portal: {
       x: 1450,
       y: 150,
@@ -198,7 +199,7 @@ window.GAME_LEVELS = [
         radius: 85,
         mass: 3200,
         color: '#F1C40F',
-        image: 'assets/images/ceo.png',
+        image: 'assets/images/CEO.png',
       },
     ],
     obstacles: [
@@ -209,7 +210,7 @@ window.GAME_LEVELS = [
         w: 400,
         h: 25,
         color: '#E74C3C',
-        image: 'assets/images/obstacle_enablementgap.png',
+        image: 'assets/images/Enablement Gap.png',
       },
     ],
   },
