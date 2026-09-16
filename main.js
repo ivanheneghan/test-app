@@ -451,6 +451,49 @@ function isImageReady(img) {
   return img && img.complete && img.naturalWidth > 0;
 }
 
+// Some provided sprites (e.g. the launcher) are flat opaque PNGs with a
+// solid-ish background baked in rather than real alpha transparency. This
+// chroma-keys out pixels close to the image's own corner/background color
+// so they blend with the game background instead of showing as a box.
+const ChromaKeyCache = {};
+
+function getChromaKeyedImage(src, tolerance = 40) {
+  if (ChromaKeyCache[src] !== undefined) return ChromaKeyCache[src];
+
+  const img = getImage(src);
+  if (!isImageReady(img)) return null;
+
+  try {
+    const off = document.createElement('canvas');
+    off.width = img.naturalWidth;
+    off.height = img.naturalHeight;
+    const octx = off.getContext('2d');
+    octx.drawImage(img, 0, 0);
+
+    const frame = octx.getImageData(0, 0, off.width, off.height);
+    const d = frame.data;
+    const bg = [d[0], d[1], d[2]]; // sample the top-left corner as background
+
+    for (let i = 0; i < d.length; i += 4) {
+      const dr = d[i] - bg[0];
+      const dg = d[i + 1] - bg[1];
+      const db = d[i + 2] - bg[2];
+      if (Math.sqrt(dr * dr + dg * dg + db * db) < tolerance) {
+        d[i + 3] = 0;
+      }
+    }
+
+    octx.putImageData(frame, 0, 0);
+    ChromaKeyCache[src] = off;
+    return off;
+  } catch (e) {
+    // Pixel access can be blocked (e.g. opening the game via a plain
+    // file:// URL taints the canvas) - fall back to the plain image.
+    ChromaKeyCache[src] = img;
+    return img;
+  }
+}
+
 // Dynamic asset preloader: walk every level's portal/planets/obstacles and
 // kick off loading for each referenced image up front, so most assets are
 // already decoded by the time a level using them is reached.
@@ -470,9 +513,21 @@ function preloadLevelImages() {
 // ---------- Render ----------
 // Draws `img` covering a w x h box (like CSS object-fit: cover): scales
 // uniformly so the box is fully filled, cropping any overflow, instead of
-// stretching the image to the box's aspect ratio.
-function drawImageCover(img, x, y, w, h) {
-  const scale = Math.max(w / img.width, h / img.height);
+// stretching the image to the box's aspect ratio. `zoom` > 1 crops in a
+// little further, useful for cropping away a provided image's own padding
+// right at the edge of a circular clip (e.g. a faint background ring).
+function drawImageCover(img, x, y, w, h, zoom = 1) {
+  const scale = Math.max(w / img.width, h / img.height) * zoom;
+  const drawW = img.width * scale;
+  const drawH = img.height * scale;
+  ctx.drawImage(img, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
+}
+
+// Draws `img` fully visible within a w x h box (like CSS object-fit:
+// contain): scales uniformly so nothing is cropped or stretched, letting
+// the image's own shape show cleanly instead of forcing it into the box.
+function drawImageContain(img, x, y, w, h) {
+  const scale = Math.min(w / img.width, h / img.height);
   const drawW = img.width * scale;
   const drawH = img.height * scale;
   ctx.drawImage(img, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
@@ -489,7 +544,7 @@ function drawPlanet(planet) {
     ctx.beginPath();
     ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
     ctx.clip();
-    drawImageCover(img, planet.x - planet.radius, planet.y - planet.radius, size, size);
+    drawImageCover(img, planet.x - planet.radius, planet.y - planet.radius, size, size, 1.15);
     ctx.restore();
   } else {
     ctx.fillStyle = planet.color || (entity && COLORS[entity.colorKey]) || COLORS.dark;
@@ -508,12 +563,7 @@ function drawObstacle(obstacle) {
   const img = obstacle.image ? getImage(obstacle.image) : null;
 
   if (isImageReady(img)) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
-    ctx.clip();
-    drawImageCover(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
-    ctx.restore();
+    drawImageContain(img, obstacle.x, obstacle.y, obstacle.w, obstacle.h);
   } else {
     ctx.fillStyle = obstacle.color || COLORS.darkest;
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
@@ -534,7 +584,7 @@ function drawPortal(portal) {
     ctx.beginPath();
     ctx.arc(portal.x, portal.y, portal.radius, 0, Math.PI * 2);
     ctx.clip();
-    drawImageCover(img, portal.x - portal.radius, portal.y - portal.radius, size, size);
+    drawImageCover(img, portal.x - portal.radius, portal.y - portal.radius, size, size, 1.15);
     ctx.restore();
   } else {
     ctx.fillStyle = portal.color || COLORS.dark;
@@ -549,10 +599,10 @@ function drawPortal(portal) {
 }
 
 function drawLauncher(launcher) {
-  const img = launcher.image ? getImage(launcher.image) : null;
+  const img = launcher.image ? getChromaKeyedImage(launcher.image) : null;
   const size = 44;
 
-  if (isImageReady(img)) {
+  if (img) {
     ctx.drawImage(img, launcher.x - size / 2, launcher.y - size / 2, size, size);
   } else {
     ctx.fillStyle = COLORS.darkest;
